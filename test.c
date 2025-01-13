@@ -102,10 +102,7 @@ int main(void)
 
     weather_measurement_setup(&my_bmp); 
 
-    uart_puts(UART_ID, "Testing UART\n");
-    uart_putc(UART_ID, 'A');
-    uart_putc(UART_ID, '\n');
-    myPrint((const uint8_t*)"Hello, UART!");
+    
 
     read_compensation_values(&my_bmp);
    
@@ -114,7 +111,7 @@ int main(void)
     while(true)
     {
         weather_measurement(&my_bmp);
-        sleep_ms(20*1000);
+        sleep_ms(10*1000);
     }
 
 
@@ -295,11 +292,7 @@ void read_compensation_values(bmp_data_t* const bmp)
 
     sleep_ms(1);
     myPrint("Compensation values read.");
-    myPrintValue(3);
-    for(int i = 0; i < 6; i++)
-        myPrintValue(bmp->temp_compensation[i]);
-    for(int j = 0; j < 18; j++)
-        myPrintValue(bmp->press_compensation[j]);
+    
 
 
 }
@@ -313,14 +306,14 @@ void read_compensation_values(bmp_data_t* const bmp)
     spi_write_blocking(SPI_PORT,start,2);
     gpio_put(PIN_CS,1);
 
-    sleep_ms(6);
+     sleep_us(100);
 
     gpio_put(PIN_CS,0);
     spi_write_blocking(SPI_PORT, (const uint8_t[]){STATUS_REGISTER | 0x80},1);
     spi_read_blocking(SPI_PORT,0x00,&status, 1);
     gpio_put(PIN_CS,1);
 
-   
+    sleep_us(100);
 
     if((status & 0x80) == 0)
     {
@@ -330,8 +323,8 @@ void read_compensation_values(bmp_data_t* const bmp)
         spi_write_blocking(SPI_PORT,(const uint8_t[]){PRESS_MSB | 0x80},1);
         spi_read_blocking(SPI_PORT, 0x00, press_temp,6);
         gpio_put(PIN_CS,1);
-
-       //tutaj i w dół
+        
+        myPrintValue (get_bmp_id());
        
          bmp->temperature_raw = (int32_t)((uint32_t)press_temp[0] << 12) |
                                 ((uint32_t)press_temp[1] <<4) |
@@ -341,7 +334,8 @@ void read_compensation_values(bmp_data_t* const bmp)
                                 ((uint32_t)press_temp[4] <<4) |
                                 (press_temp[5] >> 4);
        
-      
+        myPrintValue(bmp->temperature_raw);
+        myPrintValue(bmp->pressure_raw);
         presentData(bmp, buffer, sizeof(buffer));
 
     }
