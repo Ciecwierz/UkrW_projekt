@@ -24,6 +24,7 @@ void ukrw_uart0_init(void);
 uint8_t get_bmp_id(void);
 void bmp_spi_setup(void);
 static inline void myPrint(const uint8_t* ptr);
+static inline void myPrintValue(uint8_t value);
 void pico_set_led(bool led_on);
 int pico_led_init(void);
 void board_test(void);
@@ -100,14 +101,20 @@ int main(void)
    
 
     weather_measurement_setup(&my_bmp); 
+
+    uart_puts(UART_ID, "Testing UART\n");
+    uart_putc(UART_ID, 'A');
+    uart_putc(UART_ID, '\n');
+    myPrint((const uint8_t*)"Hello, UART!");
+
     read_compensation_values(&my_bmp);
    
-   // board_test();
+  
    
     while(true)
     {
         weather_measurement(&my_bmp);
-       // sleep_ms(60*1000);
+        sleep_ms(20*1000);
     }
 
 
@@ -193,9 +200,15 @@ static inline void myPrint(const uint8_t* ptr)
 {
     uart_puts(UART_ID,ptr);
     uart_putc(UART_ID,'\n');
+   // uart_puts(UART_ID,"Send to terminal...\n");
 }
 
-
+static inline void  myPrintValue(uint8_t value)
+{
+    char buffer[10];
+    sprintf(buffer, "%u", value);
+    myPrint(buffer);
+}
 
 void bmp_spi_setup()
 {
@@ -282,6 +295,13 @@ void read_compensation_values(bmp_data_t* const bmp)
 
     sleep_ms(1);
     myPrint("Compensation values read.");
+    myPrintValue(3);
+    for(int i = 0; i < 6; i++)
+        myPrintValue(bmp->temp_compensation[i]);
+    for(int j = 0; j < 18; j++)
+        myPrintValue(bmp->press_compensation[j]);
+
+
 }
  void weather_measurement(bmp_data_t* const bmp)
 {
@@ -300,7 +320,7 @@ void read_compensation_values(bmp_data_t* const bmp)
     spi_read_blocking(SPI_PORT,0x00,&status, 1);
     gpio_put(PIN_CS,1);
 
-
+   
 
     if((status & 0x80) == 0)
     {
@@ -311,17 +331,17 @@ void read_compensation_values(bmp_data_t* const bmp)
         spi_read_blocking(SPI_PORT, 0x00, press_temp,6);
         gpio_put(PIN_CS,1);
 
+       //tutaj i w dół
        
-       
-        bmp->temperature_raw = (int32_t)((uint32_t)press_temp[0] << 12) |
+         bmp->temperature_raw = (int32_t)((uint32_t)press_temp[0] << 12) |
                                 ((uint32_t)press_temp[1] <<4) |
                                 (press_temp[2] >> 4);
-
-        bmp->pressure_raw = (int32_t)((uint32_t)press_temp[3] << 12) |
+       
+         bmp->pressure_raw = (int32_t)((uint32_t)press_temp[3] << 12) |
                                 ((uint32_t)press_temp[4] <<4) |
                                 (press_temp[5] >> 4);
-        myPrint((const uint8_t*)bmp->temperature_raw);
-        myPrint((const uint8_t*)bmp->pressure_raw);
+       
+      
         presentData(bmp, buffer, sizeof(buffer));
 
     }
@@ -385,6 +405,7 @@ void presentData( const bmp_data_t* const bmp, char* output_buffer, const size_t
     int32_t temperature = bmp280_compensate_temperature(bmp);
     uint32_t pressure = bmp280_compensate_pressure(bmp);
     
+   
     
     memset(output_buffer, 0, buffer_size);
     snprintf(output_buffer, buffer_size, "Temp: %ld.%02ld °C, Pressure: %ld.%02ld hPa\n", 
