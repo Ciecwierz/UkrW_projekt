@@ -135,14 +135,12 @@ int main(void)
 	  printParams(&sensorParams);
   }
   pSDFatfs = &SDFatFS;
-  res = f_mount(pSDFatfs, "", 1);
+  res = f_mount(pSDFatfs, (const TCHAR*)"", 1);
 
   if(!res == FR_OK)
 	  Error_Handler();
-  res = f_mount(NULL, "", 0);
+  res = f_mount(NULL, (const TCHAR*)"", 0);
 
- // bool initCard_Sensor = (!res && initCode);
-  //HAL_GPIO_WritePin(GreenLED_GPIO_Port, GreenLED_Pin, (GPIO_PinState)initCard_Sensor);
 
   /* USER CODE END 2 */
 
@@ -151,7 +149,8 @@ int main(void)
 
   bool isMeasuring = true;
   FIL logFile;
-  char writeBuffer[150];
+  char writeBuffer[150] = {0};
+  const char* fileName = "dane.csv";
   unsigned int bytesToWrite = strlen(writeBuffer);
   unsigned int bytesWritten;
   float temp = 0.0f, press= 0.0f, hum = 0.0f;
@@ -171,24 +170,24 @@ int main(void)
 	  bmp280_read_float(&sensor, &temp, &press, &hum);
 	  HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN);
 	  HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
-
+	  press *= pressureScale;
 	  snprintf(writeBuffer,
 			  sizeof(writeBuffer),
-			  "%d/%d/%d  %d:%d:%d : Temperature: %0.2f%cC, Pressure: %0.2fhPa\r\n",
+			  "%d/%d/%d,%d:%d:%d,Temperature: %0.2f Celsius degrees,Pressure: %0.2f hPa\r\n",
 			  date.Date, date.Month, date.Year,
 			  time.Hours, time.Minutes, time.Seconds,
-			  temp,176, press*pressureScale);
-	  HAL_UART_Transmit(&huart2, (uint8_t*)writeBuffer, strlen(writeBuffer), 20);
+			  temp, press);
 
-	  res = f_mount(pSDFatfs, "", 1);
-	  res = f_open(&logFile, "log.txt", FA_OPEN_APPEND |
+
+	  res = f_mount(pSDFatfs,(const TCHAR*) "", 1);
+	  res = f_open(&logFile, (const TCHAR*)fileName, FA_OPEN_APPEND |
 			  FA_WRITE);
 	  if(res != FR_OK)
 	  {
 		  printf("Opening file failed! res = %d\r\n", res);
 		  continue;
 	  }
-
+	  bytesToWrite = (unsigned int)strlen(writeBuffer);
 	  res = f_write(&logFile, writeBuffer, bytesToWrite, &bytesWritten);
 	  if(res != FR_OK)
 	  {
@@ -205,10 +204,12 @@ int main(void)
 		  printf("Closing operation failed! res= %d\r\n", res);
 		  continue;
 	  }
-	  res = f_mount(NULL, "", 0);
+	  res = f_mount(NULL, (const TCHAR*)"", 0);
+	  HAL_UART_Transmit(&huart2, (uint8_t*)writeBuffer, strlen(writeBuffer), 20);
 	  HAL_GPIO_TogglePin(GreenLED_GPIO_Port, GreenLED_Pin);
 	  HAL_SuspendTick();
-	  HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 0x708, RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
+	  HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 0x384, RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -369,7 +370,7 @@ return;
 
   /** Initialize RTC and set the Time and Date
   */
-  sTime.Hours = 19;
+  sTime.Hours = 18;
   sTime.Minutes = 47;
   sTime.Seconds = 0;
   sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
